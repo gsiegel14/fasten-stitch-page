@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Get public key from environment variable
-const FASTEN_PUBLIC_KEY = process.env.FASTEN_PUBLIC_KEY || 'public_test_xxxx';
+const FASTEN_PUBLIC_KEY = process.env.FASTEN_PUBLIC_KEY || 'public_test_84adydvuspk28kawj499s3f4bmemmcwf1ad54wtagihn0';
 
 // Middleware
 app.use(helmet({
@@ -52,8 +52,8 @@ app.get('/fasten/connect', (req, res) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fasten Connect</title>
-    <link rel="stylesheet" href="https://cdn.fastenhealth.com/connect/v3/fasten-stitch-element.css">
-    <script type="module" src="https://cdn.fastenhealth.com/connect/v3/fasten-stitch-element.js"></script>
+    <link href="https://cdn.fastenhealth.com/connect/v3/fasten-stitch-element.css" rel="stylesheet">
+    <script src="https://cdn.fastenhealth.com/connect/v3/fasten-stitch-element.js" type="module"></script>
     <style>
       body {
         margin: 0;
@@ -135,7 +135,9 @@ app.get('/fasten/connect', (req, res) => {
         Select your healthcare provider below to get started.
       </div>
       
-      <fasten-stitch-element public-id="${FASTEN_PUBLIC_KEY}"></fasten-stitch-element>
+      <fasten-stitch-element public-id="${FASTEN_PUBLIC_KEY}">
+        Connect My Health Records
+      </fasten-stitch-element>
       
       <div class="status" id="status" style="display: none;">
         <h3>Connection Status</h3>
@@ -173,28 +175,33 @@ app.get('/fasten/connect', (req, res) => {
         }
       }
       
-      el.addEventListener('eventBus', (evt) => {
+      el.addEventListener('eventBus', (event) => {
         try {
-          // Parse the event data
-          const eventData = JSON.parse(evt.detail.data);
-          console.log('Fasten Stitch Event:', eventData);
+          // Log the raw event detail (as per documentation)
+          console.log('Fasten Stitch Event:', event.detail);
+          
+          // The event.detail should contain the full event object
+          const eventData = event.detail;
           
           // Update status based on event type
-          switch(eventData.type) {
+          switch(eventData.event_type) {
+            case 'patient.connection_pending':
+              updateStatus('Connection in progress...', 'info');
+              break;
             case 'patient.connection_success':
               updateStatus('Successfully connected to healthcare provider!', 'success');
               break;
             case 'patient.connection_failed':
               updateStatus('Connection failed. Please try again.', 'error');
               break;
-            case 'patient.ehi_export_success':
-              updateStatus('Medical records retrieved successfully!', 'success');
+            case 'widget.complete':
+              updateStatus('Widget completed successfully!', 'success');
               break;
-            case 'patient.ehi_export_failed':
-              updateStatus('Failed to retrieve medical records.', 'error');
+            case 'search.query':
+              updateStatus(\`Search query: \${eventData.data?.query || 'N/A'}\`, 'info');
               break;
             default:
-              updateStatus(\`Event received: \${eventData.type}\`, 'info');
+              updateStatus(\`Event received: \${eventData.event_type}\`, 'info');
           }
           
           // Send event data to iOS app
@@ -205,7 +212,7 @@ app.get('/fasten/connect', (req, res) => {
           });
           
         } catch (error) {
-          console.error('Error parsing Fasten event:', error);
+          console.error('Error processing Fasten event:', error);
           updateStatus('Error processing connection event', 'error');
         }
       });
